@@ -1,70 +1,31 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const dns = require('dns');
+const mongoose = require('mongoose');
+
 const app = express();
-
-// Basic Configuration
-const port = process.env.PORT || 3000;
-
-// Enable CORS
 app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Body parser middleware to handle POST requests
-app.use(bodyParser.urlencoded({ extended: false }));
+// Import Routes
+const userRoutes = require('./routes/userRoutes');
+const exerciseRoutes = require('./routes/exerciseRoutes');
 
-// Serve static files from 'public' directory
-app.use('/public', express.static(`${process.cwd()}/public`));
+app.use('/api/users', userRoutes);
+app.use('/api/users', exerciseRoutes);
 
-// In-memory store for URLs
-const urlDatabase = {};
-let urlCounter = 1;
-
-// Serve the main HTML file
-app.get('/', function(req, res) {
-  res.sendFile(process.cwd() + '/views/index.html');
-});
-
-// Your first API endpoint
-app.get('/api/hello', function(req, res) {
-  res.json({ greeting: 'hello API' });
-});
-
-// POST endpoint to create a short URL
-app.post('/api/shorturl', (req, res) => {
-  const originalUrl = req.body.url;
-  const urlRegex = /^https?:\/\/(www\.)?/i;
-  const hostname = originalUrl.replace(urlRegex, "").split("/")[0];
-
-  dns.lookup(hostname, (err) => {
-    if (err) {
-      return res.json({ error: 'invalid url' });
-    }
-
-    const shortUrl = urlCounter++;
-    urlDatabase[shortUrl] = originalUrl;
-
-    res.json({
-      original_url: originalUrl,
-      short_url: shortUrl
-    });
+// Database Connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => console.log("MongoDB Connected"))
+  .catch(err => console.error(err));
+  app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/views/index.html');
   });
-});
-
-// GET endpoint to redirect to the original URL
-app.get('/api/shorturl/:shorturl', (req, res) => {
-  const shortUrl = req.params.shorturl;
-  const originalUrl = urlDatabase[shortUrl];
-
-  if (!originalUrl) {
-    return res.json({ error: 'No short URL found for the given input' });
-  }
-
-  res.redirect(originalUrl);
-});
-
-// Start the server
-app.listen(port, function() {
-  console.log(`Listening on port ${port}`);
+  
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
